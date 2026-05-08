@@ -40,45 +40,51 @@
   }
 
   [data-theme="orange"] {
-    --sidebar-bg: #c2410c;
-    --accent: #ea580c;
-    --accent-2: #fb923c;
-    --card-bg: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
-    --body-bg: #fff7f0;
-    --text-primary: #7c2d12;
-    --border: #fed7aa;
-    --bar-fill: #ea580c;
-    --bar-empty: #fed7aa;
-    --chart-bg: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
-    --chart-line2: #fb923c;
-    --badge-bulanan: #fff7ed;
-    --badge-bulanan-text: #ea580c;
-    --badge-mingguan: #ffedd5;
-    --badge-mingguan-text: #c2410c;
-    --timeline-dot: #ea580c;
-    --timeline-line: #fed7aa;
-    --scrollbar: #ea580c;
+    --sidebar-bg: #d95f0a;
+    --sidebar-active: rgba(255,255,255,0.18);
+    --accent: #f26914;
+    --accent-2: #f28c46;
+    --card-bg: linear-gradient(135deg, #f26914 0%, #d95f0a 100%);
+    --body-bg: #fef3eb;
+    --surface: #ffffff;
+    --text-primary: #7a2e06;
+    --text-secondary: #9a6040;
+    --border: #fad4b0;
+    --bar-fill: #f26914;
+    --bar-empty: #fad4b0;
+    --chart-bg: linear-gradient(135deg, #f26914 0%, #c45208 100%);
+    --chart-line2: #f9b07a;
+    --badge-bulanan: #fff0e4;
+    --badge-bulanan-text: #d95f0a;
+    --badge-mingguan: #ffe8d6;
+    --badge-mingguan-text: #b84d07;
+    --timeline-dot: #f26914;
+    --timeline-line: #fad4b0;
+    --scrollbar: #f26914;
   }
 
   [data-theme="pink"] {
-    --sidebar-bg: #9d174d;
-    --accent: #ec4899;
-    --accent-2: #f9a8d4;
-    --card-bg: linear-gradient(135deg, #ec4899 0%, #9d174d 100%);
-    --body-bg: #fdf2f8;
-    --text-primary: #831843;
-    --border: #fce7f3;
-    --bar-fill: #ec4899;
-    --bar-empty: #fce7f3;
-    --chart-bg: linear-gradient(135deg, #ec4899 0%, #9d174d 100%);
-    --chart-line2: #f9a8d4;
-    --badge-bulanan: #fdf2f8;
-    --badge-bulanan-text: #ec4899;
-    --badge-mingguan: #fce7f3;
-    --badge-mingguan-text: #9d174d;
-    --timeline-dot: #ec4899;
-    --timeline-line: #fce7f3;
-    --scrollbar: #ec4899;
+    --sidebar-bg: #c06b8a;
+    --sidebar-active: rgba(255,255,255,0.18);
+    --accent: #d4849f;
+    --accent-2: #e8b4c5;
+    --card-bg: linear-gradient(135deg, #d4849f 0%, #b8637e 100%);
+    --body-bg: #fdf0f4;
+    --surface: #ffffff;
+    --text-primary: #7a3350;
+    --text-secondary: #a07080;
+    --border: #f5cdd9;
+    --bar-fill: #d4849f;
+    --bar-empty: #f5cdd9;
+    --chart-bg: linear-gradient(135deg, #d4849f 0%, #b8637e 100%);
+    --chart-line2: #f0b8ca;
+    --badge-bulanan: #fef0f4;
+    --badge-bulanan-text: #c06b8a;
+    --badge-mingguan: #fce4ec;
+    --badge-mingguan-text: #a04e6a;
+    --timeline-dot: #d4849f;
+    --timeline-line: #f5cdd9;
+    --scrollbar: #d4849f;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -537,7 +543,7 @@
   /* ===== PML PROGRESS CARDS ===== */
   .pml-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 14px;
     margin-bottom: 24px;
   }
@@ -572,7 +578,7 @@
     background: var(--bar-empty);
     border-radius: 4px;
     overflow: hidden;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
   .pml-bar-fill {
@@ -583,11 +589,11 @@
   }
 
   .pml-pct {
-    font-size: 20px;
-    font-weight: 800;
+    font-size: 22px;
+    font-weight: 700;
     color: var(--text-primary);
-    letter-spacing: -0.5px;
-    font-family: 'DM Mono', monospace;
+    letter-spacing: -0.3px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
   }
 
   /* ===== HARGA PAGE - TIMELINE ===== */
@@ -944,12 +950,22 @@ async function loadDistribusi() {
     const iPCL = header.findIndex(h => h.toUpperCase() === 'PCL');
     const iPML = header.findIndex(h => h.toUpperCase() === 'PML');
 
-    // Find MAY columns (minggu columns)
+    // Find MAY/minggu columns - only what actually exists in the header
     const mingguCols = [];
     header.forEach((h, i) => {
-      const upper = h.toUpperCase().replace(/"/g, '');
-      if (upper.includes('MAY') || upper.includes('MEI') || upper.includes('JUN') || upper.includes('JUL')) {
-        mingguCols.push({ label: h.replace(/"/g, ''), index: i });
+      const upper = h.toUpperCase().replace(/"/g, '').trim();
+      // Only pick columns that look like period/week columns (MAY, MEI, etc.)
+      // Must be after the PML column and be a checkbox-type column
+      if (i > iPML && (
+        upper.startsWith('MAY') || upper.startsWith('MEI') ||
+        upper.startsWith('JUN') || upper.startsWith('JUL') ||
+        upper.startsWith('AGU') || upper.startsWith('SEP') ||
+        upper.startsWith('OKT') || upper.startsWith('NOV') ||
+        upper.startsWith('DES') || upper.startsWith('JAN') ||
+        upper.startsWith('FEB') || upper.startsWith('MAR') ||
+        upper.startsWith('APR')
+      ) && upper !== '') {
+        mingguCols.push({ label: h.replace(/"/g, '').trim(), index: i });
       }
     });
 
