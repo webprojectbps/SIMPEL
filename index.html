@@ -950,21 +950,16 @@ async function loadDistribusi() {
     const iPCL = header.findIndex(h => h.toUpperCase() === 'PCL');
     const iPML = header.findIndex(h => h.toUpperCase() === 'PML');
 
-    // Find MAY/minggu columns - only what actually exists in the header
+    // Find minggu columns - ONLY from JANUARY onwards, Indonesian/abbreviated only
+    // Excludes OKTOBER, NOVEMBER, DESEMBER (last year) and English full names
+    const VALID_MONTHS = ['JAN','FEB','MAR','APR','MAY','MEI'];
     const mingguCols = [];
     header.forEach((h, i) => {
+      if (i <= iPML) return;
       const upper = h.toUpperCase().replace(/"/g, '').trim();
-      // Only pick columns that look like period/week columns (MAY, MEI, etc.)
-      // Must be after the PML column and be a checkbox-type column
-      if (i > iPML && (
-        upper.startsWith('MAY') || upper.startsWith('MEI') ||
-        upper.startsWith('JUN') || upper.startsWith('JUL') ||
-        upper.startsWith('AGU') || upper.startsWith('SEP') ||
-        upper.startsWith('OKT') || upper.startsWith('NOV') ||
-        upper.startsWith('DES') || upper.startsWith('JAN') ||
-        upper.startsWith('FEB') || upper.startsWith('MAR') ||
-        upper.startsWith('APR')
-      ) && upper !== '') {
+      if (!upper) return;
+      const isCurrentYear = VALID_MONTHS.some(prefix => upper.startsWith(prefix));
+      if (isCurrentYear) {
         mingguCols.push({ label: h.replace(/"/g, '').trim(), index: i });
       }
     });
@@ -1108,18 +1103,19 @@ function renderChartTren(mingguCols) {
   // Fixed 12 bulan sebagai sumbu X
   const allBulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const bulanKeywords = [
-    ['JAN','JANUARI'],['FEB','FEBRUARI'],['MAR','MARET'],['APR','APRIL'],
-    ['MAY','MEI'],['JUN','JUNI'],['JUL','JULI'],['AGU','AGUSTUS'],
-    ['SEP','SEPTEMBER'],['OKT','OKTOBER','OCT'],['NOV','NOVEMBER'],['DES','DESEMBER','DEC']
+    ['JAN'],['FEB'],['MAR'],['APR'],
+    ['MAY','MEI'],['JUN'],['JUL'],['AGU'],
+    ['SEP'],['OKT'],['NOV'],['DES']
   ];
   // null = belum ada data, 0+ = ada data
   const counts = new Array(12).fill(null);
   mingguCols.forEach(c => {
-    const up = c.label.toUpperCase();
+    const up = c.label.toUpperCase().trim();
     bulanKeywords.forEach((kws, idx) => {
-      if (kws.some(k => up.includes(k))) {
+      if (kws.some(k => up.startsWith(k))) {
         const n = allData.filter(d => d.mingguValues[c.label]).length;
-        counts[idx] = Math.max(counts[idx] === null ? 0 : counts[idx], n);
+        if (counts[idx] === null) counts[idx] = 0;
+        counts[idx] = Math.max(counts[idx], n);
       }
     });
   });
