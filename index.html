@@ -1273,20 +1273,37 @@ async function loadHarga() {
     const rows = csvToArray(csv);
 
     // Group by date, preserve order
+    // More robust: check col A for date-like values (contains number + month name or just has content)
     const groups = {};
     const dateOrder = [];
     let currentDate = '';
+
+    function looksLikeDate(str) {
+      if (!str) return false;
+      const s = str.toLowerCase().trim();
+      const months = ['jan','feb','mar','apr','mei','may','jun','jul','agu','sep','okt','nov','des','dec'];
+      // Has a number AND a month name, or just a short string with month
+      return months.some(m => s.includes(m)) && /\d/.test(s);
+    }
+
     for (let r = 1; r < rows.length; r++) {
       const row = rows[r];
-      const dateRaw = (row[0] || '').replace(/"/g, '').trim();
-      const note = (row[1] || '').replace(/"/g, '').trim();
-      if (!note) continue;
-      if (dateRaw) {
-        currentDate = dateRaw;
+      const colA = (row[0] || '').replace(/"/g, '').trim();
+      const colB = (row[1] || '').replace(/"/g, '').trim();
+
+      // If col A looks like a date, it's a new date group
+      if (looksLikeDate(colA)) {
+        currentDate = colA;
         if (!groups[currentDate]) { groups[currentDate] = []; dateOrder.push(currentDate); }
+        // colB on same row might also be a note
+        if (colB) groups[currentDate].push(colB);
+      } else if (colA && !looksLikeDate(colA)) {
+        // col A has something but not a date - treat as note
+        if (currentDate) groups[currentDate].push(colA);
+      } else if (colB) {
+        // col A empty, col B has note
+        if (currentDate) groups[currentDate].push(colB);
       }
-      if (!currentDate) continue;
-      groups[currentDate].push(note);
     }
 
     if (dateOrder.length === 0) {
