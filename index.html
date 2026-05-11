@@ -596,77 +596,138 @@
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
 
-  /* ===== HARGA PAGE - TIMELINE ===== */
-  .timeline {
-    position: relative;
-    padding-left: 24px;
+  /* ===== HARGA PAGE - TIMELINE V2 ===== */
+  .timeline-v2 {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
-  .timeline::before {
+  .tl-item {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 0 24px;
+    position: relative;
+    padding-bottom: 28px;
+  }
+
+  /* Vertical line */
+  .tl-item:not(:last-child) .tl-left::after {
     content: '';
     position: absolute;
-    left: 7px; top: 8px; bottom: 8px;
+    left: 11px;
+    top: 14px;
+    bottom: 0;
     width: 2px;
-    background: var(--timeline-line);
-    border-radius: 1px;
+    background: var(--border);
   }
 
-  .timeline-item {
+  .tl-left {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
     position: relative;
-    margin-bottom: 28px;
+    padding-top: 2px;
   }
 
-  .timeline-dot {
-    position: absolute;
-    left: -20px; top: 6px;
-    width: 14px; height: 14px;
+  .tl-dot {
+    width: 22px; height: 22px;
     border-radius: 50%;
-    background: var(--timeline-dot);
+    background: var(--accent);
     border: 3px solid var(--body-bg);
-    box-shadow: 0 0 0 2px var(--timeline-dot);
+    box-shadow: 0 0 0 2px var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
   }
 
-  .timeline-date {
-    font-size: 11px;
+  .tl-date-box { flex: 1; }
+
+  .tl-date-text {
+    font-size: 14px;
     font-weight: 700;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .tl-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .tl-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 20px;
+  }
+
+  .tl-badge.naik { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  .tl-badge.turun { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+  .tl-badge.mixed { background: #fff7ed; color: #d97706; border: 1px solid #fed7aa; }
+  .tl-badge.tetap { background: var(--body-bg); color: var(--text-secondary); border: 1px solid var(--border); }
+
+  .tl-right { padding-top: 0; }
+
+  .tl-groups-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .tl-group {
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .tl-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-bottom: 1px solid;
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .tl-group-icon { font-size: 14px; font-weight: 900; }
+  .tl-group-label { flex: 1; }
+
+  .tl-group-count {
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.7;
+  }
+
+  .tl-group-body { padding: 4px 0; }
+
+  .tl-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  .tl-row:last-child { border-bottom: none; }
+  .tl-row:hover { background: var(--body-bg); }
+
+  .tl-row-num {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    min-width: 16px;
     font-family: 'DM Mono', monospace;
   }
 
-  .timeline-card {
-    background: var(--surface);
-    border-radius: 12px;
-    padding: 16px 18px;
-    border: 1px solid var(--border);
-  }
-
-  .timeline-items {
-    list-style: none;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .price-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-    background: var(--body-bg);
-    border: 1px solid var(--border);
+  .tl-row-text {
+    font-size: 13px;
     color: var(--text-primary);
+    line-height: 1.4;
   }
-
-  .price-tag .icon { font-size: 11px; }
-  .price-tag.naik { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
-  .price-tag.turun { background: #f0fdf4; border-color: #bbf7d0; color: #16a34a; }
-  .price-tag.tetap { background: var(--body-bg); color: var(--text-secondary); }
 
   /* ===== ERROR STATE ===== */
   .error-state {
@@ -1211,54 +1272,104 @@ async function loadHarga() {
     const csv = await fetchCSV(SHEET_NOTES);
     const rows = csvToArray(csv);
 
-    // Group by date
+    // Group by date, preserve order
     const groups = {};
+    const dateOrder = [];
     let currentDate = '';
     for (let r = 1; r < rows.length; r++) {
       const row = rows[r];
       const dateRaw = (row[0] || '').replace(/"/g, '').trim();
       const note = (row[1] || '').replace(/"/g, '').trim();
       if (!note) continue;
-      if (dateRaw) currentDate = dateRaw;
+      if (dateRaw) {
+        currentDate = dateRaw;
+        if (!groups[currentDate]) { groups[currentDate] = []; dateOrder.push(currentDate); }
+      }
       if (!currentDate) continue;
-      if (!groups[currentDate]) groups[currentDate] = [];
       groups[currentDate].push(note);
     }
 
-    if (Object.keys(groups).length === 0) {
+    if (dateOrder.length === 0) {
       container.innerHTML = `<div class="error-state"><div class="icon">📭</div><p>Belum ada catatan harga</p></div>`;
       return;
     }
 
-    // Classify notes
     function classify(note) {
       const lower = note.toLowerCase();
+      if (lower.includes('naik') && lower.includes('turun')) return 'mixed';
       if (lower.includes('naik')) return 'naik';
       if (lower.includes('turun')) return 'turun';
+      if (lower.includes('tetap')) return 'tetap';
       return 'tetap';
     }
 
     function classIcon(type) {
-      if (type === 'naik') return '↑';
-      if (type === 'turun') return '↓';
-      return '→';
+      if (type === 'naik') return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg>`;
+      if (type === 'turun') return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>`;
+      if (type === 'mixed') return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg>`;
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
     }
 
-    const html = `<div class="timeline">` +
-      Object.entries(groups).reverse().map(([date, notes]) => `
-        <div class="timeline-item">
-          <div class="timeline-dot"></div>
-          <div class="timeline-date">${date}</div>
-          <div class="timeline-card">
-            <ul class="timeline-items">
-              ${notes.map(n => {
-                const type = classify(n);
-                return `<li class="price-tag ${type}"><span class="icon">${classIcon(type)}</span>${n}</li>`;
-              }).join('')}
-            </ul>
+    function classLabel(type) {
+      if (type === 'naik') return 'Naik';
+      if (type === 'turun') return 'Turun';
+      if (type === 'mixed') return 'Fluktuatif';
+      return 'Tetap';
+    }
+
+    const groupConfig = [
+      { key: 'naik',  label: 'Naik',        icon: '↑', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+      { key: 'turun', label: 'Turun',       icon: '↓', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+      { key: 'mixed', label: 'Fluktuatif',  icon: '↕', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+      { key: 'tetap', label: 'Tetap',       icon: '→', color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
+    ];
+
+    // Build timeline HTML
+    const html = `<div class="timeline-v2">` +
+      [...dateOrder].reverse().map(date => {
+        const notes = groups[date];
+
+        // Group notes by classification
+        const grouped = { naik: [], turun: [], mixed: [], tetap: [] };
+        notes.forEach(n => { grouped[classify(n)].push(n); });
+
+        // Build group tables (only non-empty)
+        const tablesHtml = groupConfig
+          .filter(gc => grouped[gc.key].length > 0)
+          .map(gc => `
+            <div class="tl-group">
+              <div class="tl-group-header" style="background:${gc.bg};border-color:${gc.border};color:${gc.color}">
+                <span class="tl-group-icon">${gc.icon}</span>
+                <span class="tl-group-label">${gc.label}</span>
+                <span class="tl-group-count">${grouped[gc.key].length} komoditas</span>
+              </div>
+              <div class="tl-group-body">
+                ${grouped[gc.key].map((n, i) => `
+                  <div class="tl-row">
+                    <span class="tl-row-num">${i + 1}</span>
+                    <span class="tl-row-text">${n}</span>
+                  </div>`).join('')}
+              </div>
+            </div>`).join('');
+
+        return `
+        <div class="tl-item">
+          <div class="tl-left">
+            <div class="tl-dot"></div>
+            <div class="tl-date-box">
+              <div class="tl-date-text">${date}</div>
+              <div class="tl-summary">
+                ${groupConfig.map(gc => grouped[gc.key].length > 0
+                  ? `<span class="tl-badge" style="background:${gc.bg};color:${gc.color};border-color:${gc.border}">${gc.icon} ${grouped[gc.key].length} ${gc.label.toLowerCase()}</span>`
+                  : '').join('')}
+              </div>
+            </div>
           </div>
-        </div>
-      `).join('') +
+          <div class="tl-right">
+            <div class="tl-groups-wrap">${tablesHtml}</div>
+          </div>
+        </div>`;
+      }).join('') +
     `</div>`;
 
     container.innerHTML = html;
