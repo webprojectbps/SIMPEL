@@ -1363,9 +1363,15 @@ async function loadDistribusi() {
     resetCountdown();
 
   } catch (e) {
-    console.error(e);
-    document.getElementById('kpi-total').textContent = 'Error';
-    document.getElementById('last-update-text').textContent = 'Gagal memuat data';
+    console.error('loadDistribusi error:', e);
+    // Hanya tampilkan error jika data belum berhasil dimuat sama sekali
+    if (allData.length === 0) {
+      document.getElementById('kpi-total').textContent = '—';
+      document.getElementById('kpi-pct').textContent = '—';
+      document.getElementById('last-update-text').textContent = 'Gagal memuat data';
+    } else {
+      document.getElementById('last-update-text').textContent = `Update: ${formatTime(new Date())} (sebagian)`;
+    }
   }
 
   btn.classList.remove('loading');
@@ -1525,67 +1531,6 @@ function renderChartPCL() {
     }
   });
 }
-function renderChartTren(mingguCols) {
-  // Fixed 12 bulan sebagai sumbu X
-  const allBulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-  const bulanKeywords = [
-    ['JAN'],['FEB'],['MAR'],['APR'],
-    ['MAY','MEI'],['JUN'],['JUL'],['AGU'],
-    ['SEP'],['OKT'],['NOV'],['DES']
-  ];
-  // null = belum ada data, 0+ = ada data
-  const counts = new Array(12).fill(null);
-  mingguCols.forEach(c => {
-    const up = c.label.toUpperCase().trim();
-    bulanKeywords.forEach((kws, idx) => {
-      if (kws.some(k => up.startsWith(k))) {
-        const n = allData.filter(d => d.mingguValues[c.label]).length;
-        if (counts[idx] === null) counts[idx] = 0;
-        counts[idx] = Math.max(counts[idx], n);
-      }
-    });
-  });
-  const displayCounts = counts.map(v => v === null ? 0 : v);
-  const pointColors = counts.map(v => v !== null ? '#fff' : 'rgba(255,255,255,0.2)');
-  const pointRadius = counts.map(v => v !== null ? 5 : 3);
-
-  if (chartTren) chartTren.destroy();
-  const ctx = document.getElementById('chart-tren').getContext('2d');
-  chartTren = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: allBulan,
-      datasets: [{
-        label: 'Responden Selesai',
-        data: displayCounts,
-        borderColor: 'rgba(255,255,255,0.9)',
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderWidth: 2.5,
-        pointBackgroundColor: pointColors,
-        pointRadius: pointRadius,
-        pointBorderColor: 'rgba(255,255,255,0.5)',
-        tension: 0.4,
-        fill: true
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: {
-          label: ctx2 => counts[ctx2.dataIndex] !== null
-            ? ` ${ctx2.parsed.y} responden selesai`
-            : ' Belum ada data'
-        }}
-      },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: 'rgba(255,255,255,0.7)', font: { family: 'Plus Jakarta Sans', size: 11 } } },
-        y: { min: 0, grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: 'rgba(255,255,255,0.6)', font: { family: 'DM Mono', size: 10 }, stepSize: 20 } }
-      }
-    }
-  });
-}
-
 // ===== RENDER TABLE =====
 function renderTable() {
   const filterPML = document.getElementById('filter-pml').value;
