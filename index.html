@@ -1030,15 +1030,92 @@
     </div>
   </div>
 
-  <!-- ===== PAGE: SHP (kosong, belum ada data) ===== -->
+  <!-- ===== PAGE: SHP ===== -->
   <div class="page" id="page-shp">
     <div class="page-header">
-      <h1 class="page-title">SHP</h1>
+      <h1 class="page-title">Dashboard SHP</h1>
+      <div class="header-right">
+        <div class="last-update" id="last-update-shp">Memuat data...</div>
+        <button class="btn-refresh" id="btn-refresh-shp" onclick="loadSHP()">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
     </div>
-    <div class="empty-page">
-      <div class="empty-icon">📋</div>
-      <div class="empty-title">Data Belum Tersedia</div>
-      <div class="empty-desc">Halaman SHP sedang dalam persiapan. Data akan ditampilkan setelah spreadsheet tersedia.</div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Jumlah Responden</div>
+        <div class="kpi-value" id="shp-kpi-total">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Persentase Selesai</div>
+        <div class="kpi-value" id="shp-kpi-pct">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">PML Progress Tertinggi</div>
+        <div class="kpi-value name" id="shp-kpi-top">—</div>
+      </div>
+    </div>
+
+    <!-- PML Progress Cards -->
+    <div class="pml-grid" id="shp-pml-grid"></div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">Progress Responden Per PML</div>
+        <div class="chart-wrap">
+          <canvas id="chart-shp-pml"></canvas>
+        </div>
+      </div>
+      <div class="chart-card dark">
+        <div class="chart-title">Tren Penyelesaian Per Bulan</div>
+        <div class="chart-wrap">
+          <canvas id="chart-shp-tren"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail Table -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Detail Responden SHP</div>
+        <div class="filter-wrap">
+          <select class="filter-select" id="shp-filter-pml" onchange="renderSHPTable()">
+            <option value="">Semua PML</option>
+          </select>
+          <select class="filter-select" id="shp-filter-jenis" onchange="renderSHPTable()">
+            <option value="">Semua Jenis</option>
+          </select>
+          <select class="filter-select" id="shp-filter-status" onchange="renderSHPTable()">
+            <option value="">Semua Status</option>
+            <option value="done">Selesai</option>
+            <option value="pending">Belum</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nama Responden</th>
+              <th>Jenis Kuesioner</th>
+              <th>Pencacah (PCL)</th>
+              <th>PML</th>
+              <th>Status MEI</th>
+            </tr>
+          </thead>
+          <tbody id="shp-table-body">
+            <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary)">Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
   <div class="page" id="page-harga" style="display:none !important">
@@ -1067,12 +1144,17 @@
 const SHEET_ID = '1PuwLnWmKs1hR_Iw7pLhbn-LkF0Bsu2n-';
 const SHEET_SAMPEL = 'sampel 2026_rev';
 const SHEET_NOTES = 'notes';
-const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 menit
+const SHP_SHEET_ID = '1pxRbeFV2J-a_S69SUqVLsXYr-l6yiNXydkZQ94oNRBc';
+const SHP_SHEET_SAMPEL = 'Sampel';
+const AUTO_REFRESH_MS = 5 * 60 * 1000;
 
 // ===== STATE =====
 let allData = [];
+let allDataSHP = [];
 let chartPML = null;
 let chartTren = null;
+let chartSHPPML = null;
+let chartSHPTren = null;
 let refreshTimer = null;
 let countdownTimer = null;
 let refreshSecondsLeft = 300;
@@ -1522,6 +1604,215 @@ async function loadHarga() {
   }
 }
 
+// ===== SHP FUNCTIONS =====
+async function fetchCSV2(sheetId, sheet) {
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Gagal fetch SHP');
+  return await res.text();
+}
+
+async function loadSHP() {
+  const btn = document.getElementById('btn-refresh-shp');
+  if (btn) btn.classList.add('loading');
+  try {
+    const csv = await fetchCSV2(SHP_SHEET_ID, SHP_SHEET_SAMPEL);
+    const rows = csvToArray(csv);
+    if (rows.length < 4) throw new Error('Data kosong');
+
+    // Header di baris index 2 (baris ke-3), data mulai index 3
+    const header = rows[2].map(h => h.replace(/"/g, '').trim());
+    const iNama  = header.findIndex(h => h.toUpperCase().includes('NAMA RESPONDEN'));
+    const iJenis = header.findIndex(h => h.toUpperCase().includes('JENIS'));
+    const iPCL   = header.findIndex(h => h.toUpperCase().includes('PENCACAH'));
+    const iPML   = header.findIndex(h => h.toUpperCase() === 'PML');
+
+    const VALID = ['JAN','FEB','MAR','APR','MAY','MEI'];
+    const mingguCols = [];
+    header.forEach((h, i) => {
+      if (i <= iPML) return;
+      const up = h.toUpperCase().trim();
+      if (VALID.some(p => up.startsWith(p))) mingguCols.push({ label: h, index: i });
+    });
+
+    allDataSHP = [];
+    for (let r = 3; r < rows.length; r++) {
+      const row = rows[r];
+      const nama = (row[iNama] || '').replace(/"/g, '').trim();
+      if (!nama) continue;
+      const jenis   = (row[iJenis] || '').replace(/"/g, '').trim();
+      const pcl     = (row[iPCL]   || '').replace(/"/g, '').trim();
+      const pml     = (row[iPML]   || '').replace(/"/g, '').trim();
+      const meiCol  = mingguCols.find(c => c.label.toUpperCase().startsWith('MEI') || c.label.toUpperCase().startsWith('MAY'));
+      const selesai = meiCol ? isTrue(row[meiCol.index] || '') : false;
+      const mingguValues = {};
+      mingguCols.forEach(c => { mingguValues[c.label] = isTrue(row[c.index] || ''); });
+      allDataSHP.push({ nama, jenis, pcl, pml, selesai, mingguValues });
+    }
+
+    renderSHPKPI();
+    renderSHPPMLCards();
+    renderSHPChartPML();
+    renderSHPChartTren(mingguCols);
+    renderSHPTable();
+    populateSHPFilters();
+    document.getElementById('last-update-shp').textContent = `Update: ${formatTime(new Date())}`;
+  } catch(e) {
+    console.error('SHP load error:', e);
+    document.getElementById('last-update-shp').textContent = 'Gagal memuat data';
+  }
+  if (btn) btn.classList.remove('loading');
+}
+
+function renderSHPKPI() {
+  const total   = allDataSHP.length;
+  const selesai = allDataSHP.filter(d => d.selesai).length;
+  const pct     = total > 0 ? Math.round((selesai / total) * 100) : 0;
+  const pmlMap  = {};
+  allDataSHP.forEach(d => {
+    if (!d.pml) return;
+    if (!pmlMap[d.pml]) pmlMap[d.pml] = { total: 0, selesai: 0 };
+    pmlMap[d.pml].total++;
+    if (d.selesai) pmlMap[d.pml].selesai++;
+  });
+  let topPML = '—', topPct = -1;
+  Object.entries(pmlMap).forEach(([pml, v]) => {
+    const p = v.total > 0 ? v.selesai / v.total : 0;
+    if (p > topPct) { topPct = p; topPML = capitalize(pml); }
+  });
+  document.getElementById('shp-kpi-total').textContent = total.toLocaleString('id-ID');
+  document.getElementById('shp-kpi-pct').textContent   = `${pct}%`;
+  document.getElementById('shp-kpi-top').textContent   = topPML;
+}
+
+function renderSHPPMLCards() {
+  const pmlMap = {};
+  allDataSHP.forEach(d => {
+    if (!d.pml) return;
+    if (!pmlMap[d.pml]) pmlMap[d.pml] = { total: 0, selesai: 0 };
+    pmlMap[d.pml].total++;
+    if (d.selesai) pmlMap[d.pml].selesai++;
+  });
+  document.getElementById('shp-pml-grid').innerHTML = Object.entries(pmlMap).map(([pml, v]) => {
+    const pct = v.total > 0 ? Math.round((v.selesai / v.total) * 100) : 0;
+    return `<div class="pml-card">
+      <div class="pml-name">${capitalize(pml)}</div>
+      <div class="pml-stats">${v.selesai} / ${v.total} responden</div>
+      <div class="pml-bar"><div class="pml-bar-fill" style="width:${pct}%"></div></div>
+      <div class="pml-pct">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+function renderSHPChartPML() {
+  const pmlMap = {};
+  allDataSHP.forEach(d => {
+    if (!d.pml) return;
+    if (!pmlMap[d.pml]) pmlMap[d.pml] = { total: 0, selesai: 0 };
+    pmlMap[d.pml].total++;
+    if (d.selesai) pmlMap[d.pml].selesai++;
+  });
+  const labels      = Object.keys(pmlMap).map(capitalize);
+  const selesaiData = Object.values(pmlMap).map(v => v.selesai);
+  const belumData   = Object.values(pmlMap).map(v => v.total - v.selesai);
+  const fillColor   = getComputedStyle(document.documentElement).getPropertyValue('--bar-fill').trim() || '#3b4fd8';
+  if (chartSHPPML) chartSHPPML.destroy();
+  chartSHPPML = new Chart(document.getElementById('chart-shp-pml').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Selesai', data: selesaiData, backgroundColor: fillColor, borderRadius: 4, borderSkipped: false },
+      { label: 'Belum',   data: belumData,   backgroundColor: '#e5e7f0', borderRadius: 4, borderSkipped: false }
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { font: { family: 'Plus Jakarta Sans', size: 11 }, color: '#6b7280' } },
+        y: { stacked: true, grid: { color: '#f3f4f6' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#6b7280' } }
+      }
+    }
+  });
+}
+
+function renderSHPChartTren(mingguCols) {
+  const allBulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const bulanKw  = [['JAN'],['FEB'],['MAR'],['APR'],['MAY','MEI'],['JUN'],['JUL'],['AGU'],['SEP'],['OKT'],['NOV'],['DES']];
+  const counts   = new Array(12).fill(null);
+  mingguCols.forEach(c => {
+    const up = c.label.toUpperCase().trim();
+    bulanKw.forEach((kws, idx) => {
+      if (kws.some(k => up.startsWith(k))) {
+        const n = allDataSHP.filter(d => d.mingguValues[c.label]).length;
+        if (counts[idx] === null) counts[idx] = 0;
+        counts[idx] = Math.max(counts[idx], n);
+      }
+    });
+  });
+  const displayCounts = counts.map(v => v === null ? 0 : v);
+  const pointColors   = counts.map(v => v !== null ? '#fff' : 'rgba(255,255,255,0.2)');
+  const pointRadius   = counts.map(v => v !== null ? 5 : 3);
+  if (chartSHPTren) chartSHPTren.destroy();
+  chartSHPTren = new Chart(document.getElementById('chart-shp-tren').getContext('2d'), {
+    type: 'line',
+    data: { labels: allBulan, datasets: [{
+      label: 'Responden Selesai',
+      data: displayCounts,
+      borderColor: 'rgba(255,255,255,0.9)',
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      borderWidth: 2.5,
+      pointBackgroundColor: pointColors,
+      pointRadius: pointRadius,
+      tension: 0.4, fill: true
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: ctx2 => counts[ctx2.dataIndex] !== null ? ` ${ctx2.parsed.y} responden selesai` : ' Belum ada data'
+      }}},
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: 'rgba(255,255,255,0.7)', font: { family: 'Plus Jakarta Sans', size: 11 } } },
+        y: { min: 0, grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: 'rgba(255,255,255,0.6)', font: { family: 'DM Mono', size: 10 } } }
+      }
+    }
+  });
+}
+
+function renderSHPTable() {
+  const filterPML    = document.getElementById('shp-filter-pml').value;
+  const filterJenis  = document.getElementById('shp-filter-jenis').value;
+  const filterStatus = document.getElementById('shp-filter-status').value;
+  let filtered = allDataSHP.filter(d => {
+    if (filterPML    && d.pml.toUpperCase()   !== filterPML.toUpperCase())   return false;
+    if (filterJenis  && d.jenis.toUpperCase() !== filterJenis.toUpperCase()) return false;
+    if (filterStatus === 'done'    && !d.selesai) return false;
+    if (filterStatus === 'pending' &&  d.selesai) return false;
+    return true;
+  });
+  const tbody = document.getElementById('shp-table-body');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary)">Tidak ada data</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map((d, i) => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-secondary)">${i + 1}</td>
+      <td style="font-weight:600">${d.nama}</td>
+      <td><span class="badge badge-bulanan">${d.jenis}</span></td>
+      <td>${d.pcl}</td>
+      <td style="font-weight:600">${capitalize(d.pml)}</td>
+      <td><span class="status-dot ${d.selesai ? 'status-done' : 'status-pending'}"></span>${d.selesai ? 'Selesai' : 'Belum'}</td>
+    </tr>`).join('');
+}
+
+function populateSHPFilters() {
+  const pmls  = [...new Set(allDataSHP.map(d => d.pml).filter(Boolean))];
+  const jenis = [...new Set(allDataSHP.map(d => d.jenis).filter(Boolean))];
+  const selPML   = document.getElementById('shp-filter-pml');
+  const selJenis = document.getElementById('shp-filter-jenis');
+  selPML.innerHTML   = '<option value="">Semua PML</option>'   + pmls.map(p  => `<option value="${p}">${capitalize(p)}</option>`).join('');
+  selJenis.innerHTML = '<option value="">Semua Jenis</option>' + jenis.map(j => `<option value="${j}">${j}</option>`).join('');
+}
+
 // ===== AUTO REFRESH COUNTDOWN =====
 function resetCountdown() {
   clearInterval(countdownTimer);
@@ -1560,6 +1851,7 @@ function setTheme(theme, btn) {
   // Redraw charts with new colors
   setTimeout(() => {
     renderChartPML();
+    if (shpLoaded) renderSHPChartPML();
   }, 100);
 }
 
@@ -1579,18 +1871,17 @@ function toggleAccordion(name) {
 }
 
 // ===== SUBPAGE NAVIGATION =====
+let shpLoaded = false;
 function showSubPage(sub) {
-  // Hide all pages
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  // Deactivate all subitems
   document.querySelectorAll('.nav-subitem').forEach(b => b.classList.remove('active'));
-
   if (sub === 'shpb') {
     document.getElementById('page-distribusi').classList.add('active');
     document.getElementById('sub-shpb').classList.add('active');
   } else if (sub === 'shp') {
     document.getElementById('page-shp').classList.add('active');
     document.getElementById('sub-shp').classList.add('active');
+    if (!shpLoaded) { shpLoaded = true; loadSHP(); }
   }
 }
 
