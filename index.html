@@ -865,6 +865,17 @@
     max-width: 280px;
     line-height: 1.6;
   }
+
+  .section-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    margin-top: 4px;
+  }
+
   @media (max-width: 900px) {
     .sidebar { width: 64px; }
     .logo, .logo-sub, .nav-item span, .theme-section, .nav-label { display: none; }
@@ -972,12 +983,18 @@
         <div class="kpi-label">PML Progress Tertinggi</div>
         <div class="kpi-value name" id="kpi-top">—</div>
       </div>
+      <div class="kpi-card">
+        <div class="kpi-label">PCL Progress Tertinggi</div>
+        <div class="kpi-value name" id="kpi-top-pcl">—</div>
+      </div>
     </div>
 
     <!-- PML Progress Cards -->
-    <div class="pml-grid" id="pml-grid">
-      <!-- filled by JS -->
-    </div>
+    <div class="pml-grid" id="pml-grid"></div>
+
+    <!-- PCL Progress Cards -->
+    <div class="section-label">Progress Per PCL</div>
+    <div class="pml-grid" id="pcl-grid"></div>
 
     <!-- Charts Row -->
     <div class="charts-row">
@@ -987,10 +1004,10 @@
           <canvas id="chart-pml"></canvas>
         </div>
       </div>
-      <div class="chart-card dark">
-        <div class="chart-title">Tren Penyelesaian Per Minggu</div>
+      <div class="chart-card">
+        <div class="chart-title">Progress Responden Per PCL</div>
         <div class="chart-wrap">
-          <canvas id="chart-tren"></canvas>
+          <canvas id="chart-pcl"></canvas>
         </div>
       </div>
     </div>
@@ -1060,10 +1077,18 @@
         <div class="kpi-label">PML Progress Tertinggi</div>
         <div class="kpi-value name" id="shp-kpi-top">—</div>
       </div>
+      <div class="kpi-card">
+        <div class="kpi-label">PCL Progress Tertinggi</div>
+        <div class="kpi-value name" id="shp-kpi-top-pcl">—</div>
+      </div>
     </div>
 
     <!-- PML Progress Cards -->
     <div class="pml-grid" id="shp-pml-grid"></div>
+
+    <!-- PCL Progress Cards -->
+    <div class="section-label">Progress Per PCL</div>
+    <div class="pml-grid" id="shp-pcl-grid"></div>
 
     <!-- Charts Row -->
     <div class="charts-row">
@@ -1073,10 +1098,10 @@
           <canvas id="chart-shp-pml"></canvas>
         </div>
       </div>
-      <div class="chart-card dark">
-        <div class="chart-title">Tren Penyelesaian Per Bulan</div>
+      <div class="chart-card">
+        <div class="chart-title">Progress Responden Per PCL</div>
         <div class="chart-wrap">
-          <canvas id="chart-shp-tren"></canvas>
+          <canvas id="chart-shp-pcl"></canvas>
         </div>
       </div>
     </div>
@@ -1152,8 +1177,10 @@ const AUTO_REFRESH_MS = 5 * 60 * 1000;
 let allData = [];
 let allDataSHP = [];
 let chartPML = null;
+let chartPCL = null;
 let chartTren = null;
 let chartSHPPML = null;
+let chartSHPPCL = null;
 let chartSHPTren = null;
 let refreshTimer = null;
 let countdownTimer = null;
@@ -1260,8 +1287,9 @@ async function loadDistribusi() {
 
     renderKPI();
     renderPMLCards();
+    renderPCLCards();
     renderChartPML();
-    renderChartTren(mingguCols);
+    renderChartPCL();
     renderTable();
     populateFilterPML();
 
@@ -1291,15 +1319,30 @@ function renderKPI() {
     pmlMap[d.pml].total++;
     if (d.selesai) pmlMap[d.pml].selesai++;
   });
-  let topPML = '—', topPct = -1;
+  let topPML = '—', topPMLPct = -1;
   Object.entries(pmlMap).forEach(([pml, v]) => {
     const p = v.total > 0 ? v.selesai / v.total : 0;
-    if (p > topPct) { topPct = p; topPML = capitalize(pml); }
+    if (p > topPMLPct) { topPMLPct = p; topPML = capitalize(pml); }
+  });
+
+  // Top PCL
+  const pclMap = {};
+  allData.forEach(d => {
+    if (!d.pcl) return;
+    if (!pclMap[d.pcl]) pclMap[d.pcl] = { total: 0, selesai: 0 };
+    pclMap[d.pcl].total++;
+    if (d.selesai) pclMap[d.pcl].selesai++;
+  });
+  let topPCL = '—', topPCLPct = -1;
+  Object.entries(pclMap).forEach(([pcl, v]) => {
+    const p = v.total > 0 ? v.selesai / v.total : 0;
+    if (p > topPCLPct) { topPCLPct = p; topPCL = capitalize(pcl); }
   });
 
   document.getElementById('kpi-total').textContent = total.toLocaleString('id-ID');
   document.getElementById('kpi-pct').textContent = `${pct}%`;
   document.getElementById('kpi-top').textContent = topPML;
+  document.getElementById('kpi-top-pcl').textContent = topPCL;
 }
 
 // ===== RENDER PML CARDS =====
@@ -1366,7 +1409,56 @@ function renderChartPML() {
   });
 }
 
-// ===== RENDER CHART TREN =====
+// ===== RENDER PCL CARDS (SHPB) =====
+function renderPCLCards() {
+  const pclMap = {};
+  allData.forEach(d => {
+    if (!d.pcl) return;
+    if (!pclMap[d.pcl]) pclMap[d.pcl] = { total: 0, selesai: 0 };
+    pclMap[d.pcl].total++;
+    if (d.selesai) pclMap[d.pcl].selesai++;
+  });
+  document.getElementById('pcl-grid').innerHTML = Object.entries(pclMap).map(([pcl, v]) => {
+    const pct = v.total > 0 ? Math.round((v.selesai / v.total) * 100) : 0;
+    return `<div class="pml-card">
+      <div class="pml-name">${capitalize(pcl)}</div>
+      <div class="pml-stats">${v.selesai} / ${v.total} responden</div>
+      <div class="pml-bar"><div class="pml-bar-fill" style="width:${pct}%"></div></div>
+      <div class="pml-pct">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+// ===== RENDER CHART PCL (SHPB) =====
+function renderChartPCL() {
+  const pclMap = {};
+  allData.forEach(d => {
+    if (!d.pcl) return;
+    if (!pclMap[d.pcl]) pclMap[d.pcl] = { total: 0, selesai: 0 };
+    pclMap[d.pcl].total++;
+    if (d.selesai) pclMap[d.pcl].selesai++;
+  });
+  const labels      = Object.keys(pclMap).map(capitalize);
+  const selesaiData = Object.values(pclMap).map(v => v.selesai);
+  const belumData   = Object.values(pclMap).map(v => v.total - v.selesai);
+  const fillColor   = getComputedStyle(document.documentElement).getPropertyValue('--bar-fill').trim() || '#3b4fd8';
+  if (chartPCL) chartPCL.destroy();
+  chartPCL = new Chart(document.getElementById('chart-pcl').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Selesai', data: selesaiData, backgroundColor: fillColor, borderRadius: 4, borderSkipped: false },
+      { label: 'Belum',   data: belumData,   backgroundColor: '#e5e7f0', borderRadius: 4, borderSkipped: false }
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { font: { family: 'Plus Jakarta Sans', size: 10 }, color: '#6b7280', maxRotation: 45 } },
+        y: { stacked: true, grid: { color: '#f3f4f6' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#6b7280' } }
+      }
+    }
+  });
+}
 function renderChartTren(mingguCols) {
   // Fixed 12 bulan sebagai sumbu X
   const allBulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
@@ -1662,8 +1754,9 @@ async function loadSHP() {
 
     renderSHPKPI();
     renderSHPPMLCards();
+    renderSHPPCLCards();
     renderSHPChartPML();
-    renderSHPChartTren(mingguCols);
+    renderSHPChartPCL();
     renderSHPTable();
     populateSHPFilters();
     document.getElementById('last-update-shp').textContent = `Update: ${formatTime(new Date())}`;
@@ -1678,21 +1771,86 @@ function renderSHPKPI() {
   const total   = allDataSHP.length;
   const selesai = allDataSHP.filter(d => d.selesai).length;
   const pct     = total > 0 ? Math.round((selesai / total) * 100) : 0;
-  const pmlMap  = {};
+
+  const pmlMap = {};
   allDataSHP.forEach(d => {
     if (!d.pml) return;
     if (!pmlMap[d.pml]) pmlMap[d.pml] = { total: 0, selesai: 0 };
     pmlMap[d.pml].total++;
     if (d.selesai) pmlMap[d.pml].selesai++;
   });
-  let topPML = '—', topPct = -1;
+  let topPML = '—', topPMLPct = -1;
   Object.entries(pmlMap).forEach(([pml, v]) => {
     const p = v.total > 0 ? v.selesai / v.total : 0;
-    if (p > topPct) { topPct = p; topPML = capitalize(pml); }
+    if (p > topPMLPct) { topPMLPct = p; topPML = capitalize(pml); }
   });
-  document.getElementById('shp-kpi-total').textContent = total.toLocaleString('id-ID');
-  document.getElementById('shp-kpi-pct').textContent   = `${pct}%`;
-  document.getElementById('shp-kpi-top').textContent   = topPML;
+
+  const pclMap = {};
+  allDataSHP.forEach(d => {
+    if (!d.pcl) return;
+    if (!pclMap[d.pcl]) pclMap[d.pcl] = { total: 0, selesai: 0 };
+    pclMap[d.pcl].total++;
+    if (d.selesai) pclMap[d.pcl].selesai++;
+  });
+  let topPCL = '—', topPCLPct = -1;
+  Object.entries(pclMap).forEach(([pcl, v]) => {
+    const p = v.total > 0 ? v.selesai / v.total : 0;
+    if (p > topPCLPct) { topPCLPct = p; topPCL = capitalize(pcl); }
+  });
+
+  document.getElementById('shp-kpi-total').textContent   = total.toLocaleString('id-ID');
+  document.getElementById('shp-kpi-pct').textContent     = `${pct}%`;
+  document.getElementById('shp-kpi-top').textContent     = topPML;
+  document.getElementById('shp-kpi-top-pcl').textContent = topPCL;
+}
+
+function renderSHPPCLCards() {
+  const pclMap = {};
+  allDataSHP.forEach(d => {
+    if (!d.pcl) return;
+    if (!pclMap[d.pcl]) pclMap[d.pcl] = { total: 0, selesai: 0 };
+    pclMap[d.pcl].total++;
+    if (d.selesai) pclMap[d.pcl].selesai++;
+  });
+  document.getElementById('shp-pcl-grid').innerHTML = Object.entries(pclMap).map(([pcl, v]) => {
+    const pct = v.total > 0 ? Math.round((v.selesai / v.total) * 100) : 0;
+    return `<div class="pml-card">
+      <div class="pml-name">${capitalize(pcl)}</div>
+      <div class="pml-stats">${v.selesai} / ${v.total} responden</div>
+      <div class="pml-bar"><div class="pml-bar-fill" style="width:${pct}%"></div></div>
+      <div class="pml-pct">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+function renderSHPChartPCL() {
+  const pclMap = {};
+  allDataSHP.forEach(d => {
+    if (!d.pcl) return;
+    if (!pclMap[d.pcl]) pclMap[d.pcl] = { total: 0, selesai: 0 };
+    pclMap[d.pcl].total++;
+    if (d.selesai) pclMap[d.pcl].selesai++;
+  });
+  const labels      = Object.keys(pclMap).map(capitalize);
+  const selesaiData = Object.values(pclMap).map(v => v.selesai);
+  const belumData   = Object.values(pclMap).map(v => v.total - v.selesai);
+  const fillColor   = getComputedStyle(document.documentElement).getPropertyValue('--bar-fill').trim() || '#3b4fd8';
+  if (chartSHPPCL) chartSHPPCL.destroy();
+  chartSHPPCL = new Chart(document.getElementById('chart-shp-pcl').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Selesai', data: selesaiData, backgroundColor: fillColor, borderRadius: 4, borderSkipped: false },
+      { label: 'Belum',   data: belumData,   backgroundColor: '#e5e7f0', borderRadius: 4, borderSkipped: false }
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { font: { family: 'Plus Jakarta Sans', size: 10 }, color: '#6b7280', maxRotation: 45 } },
+        y: { stacked: true, grid: { color: '#f3f4f6' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#6b7280' } }
+      }
+    }
+  });
 }
 
 function renderSHPPMLCards() {
@@ -1861,7 +2019,8 @@ function setTheme(theme, btn) {
   // Redraw charts with new colors
   setTimeout(() => {
     renderChartPML();
-    if (shpLoaded) renderSHPChartPML();
+    renderChartPCL();
+    if (shpLoaded) { renderSHPChartPML(); renderSHPChartPCL(); }
   }, 100);
 }
 
