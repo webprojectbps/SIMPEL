@@ -760,7 +760,111 @@
     transition: width 1s linear;
   }
 
-  /* ===== RESPONSIVE ===== */
+  /* ===== ACCORDION SUBMENU ===== */
+  .nav-accordion { margin-bottom: 4px; }
+
+  .nav-parent {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: var(--sidebar-text);
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 500;
+    border: none;
+    background: none;
+    text-align: left;
+    transition: all 0.2s;
+    margin-bottom: 0;
+  }
+
+  .nav-parent:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .nav-parent.active { background: var(--sidebar-active); color: #fff; font-weight: 600; }
+
+  .nav-chevron {
+    margin-left: auto;
+    transition: transform 0.25s;
+    opacity: 0.6;
+    display: flex;
+  }
+
+  .nav-chevron.rotated { transform: rotate(-90deg); }
+
+  .nav-submenu {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease;
+    padding-left: 16px;
+  }
+
+  .nav-submenu.open { max-height: 120px; }
+
+  .nav-subitem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: rgba(255,255,255,0.55);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    transition: all 0.2s;
+    margin-top: 2px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  .nav-subitem:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); }
+  .nav-subitem.active { color: #fff; font-weight: 600; }
+  .nav-subitem.active .nav-sub-dot { background: #fff; }
+
+  .nav-sub-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+
+  /* ===== SHP EMPTY PAGE ===== */
+  .empty-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .empty-icon {
+    width: 72px; height: 72px;
+    border-radius: 20px;
+    background: var(--body-bg);
+    border: 2px dashed var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+
+  .empty-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .empty-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    max-width: 280px;
+    line-height: 1.6;
+  }
   @media (max-width: 900px) {
     .sidebar { width: 64px; }
     .logo, .logo-sub, .nav-item span, .theme-section, .nav-label { display: none; }
@@ -778,15 +882,34 @@
   <div class="logo-sub">Sistem Monitoring Progress & Evaluasi Lapangan</div>
 
   <div class="nav-label">Menu</div>
-  <button class="nav-item active" onclick="showPage('distribusi')">
-    <span class="nav-icon">
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-      </svg>
-    </span>
-    <span>Distribusi</span>
-  </button>
+
+  <!-- Distribusi accordion -->
+  <div class="nav-accordion" id="accordion-distribusi">
+    <button class="nav-item nav-parent active" onclick="toggleAccordion('distribusi')">
+      <span class="nav-icon">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </span>
+      <span>Distribusi</span>
+      <span class="nav-chevron" id="chevron-distribusi">
+        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </span>
+    </button>
+    <div class="nav-submenu open" id="submenu-distribusi">
+      <button class="nav-subitem active" onclick="showSubPage('shpb')" id="sub-shpb">
+        <span class="nav-sub-dot"></span>
+        <span>SHPB</span>
+      </button>
+      <button class="nav-subitem" onclick="showSubPage('shp')" id="sub-shp">
+        <span class="nav-sub-dot"></span>
+        <span>SHP</span>
+      </button>
+    </div>
+  </div>
   <button class="nav-item" onclick="showPage('harga')" style="display:none">
     <span class="nav-icon">
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -907,7 +1030,17 @@
     </div>
   </div>
 
-  <!-- ===== PAGE: HARGA (disembunyikan sementara, kode tetap ada) ===== -->
+  <!-- ===== PAGE: SHP (kosong, belum ada data) ===== -->
+  <div class="page" id="page-shp">
+    <div class="page-header">
+      <h1 class="page-title">SHP</h1>
+    </div>
+    <div class="empty-page">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">Data Belum Tersedia</div>
+      <div class="empty-desc">Halaman SHP sedang dalam persiapan. Data akan ditampilkan setelah spreadsheet tersedia.</div>
+    </div>
+  </div>
   <div class="page" id="page-harga" style="display:none !important">
     <div class="page-header">
       <h1 class="page-title">Catatan Harga</h1>
@@ -1434,6 +1567,31 @@ function loadTheme() {
   const saved = localStorage.getItem('simpel-theme') || 'blue';
   const btn = document.querySelector(`.theme-btn-${saved === 'blue' ? 'blue' : saved === 'orange' ? 'orange' : 'pink'}`);
   if (btn) setTheme(saved, btn);
+}
+
+// ===== ACCORDION =====
+function toggleAccordion(name) {
+  const submenu = document.getElementById(`submenu-${name}`);
+  const chevron = document.getElementById(`chevron-${name}`);
+  const isOpen = submenu.classList.contains('open');
+  submenu.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('rotated', isOpen);
+}
+
+// ===== SUBPAGE NAVIGATION =====
+function showSubPage(sub) {
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  // Deactivate all subitems
+  document.querySelectorAll('.nav-subitem').forEach(b => b.classList.remove('active'));
+
+  if (sub === 'shpb') {
+    document.getElementById('page-distribusi').classList.add('active');
+    document.getElementById('sub-shpb').classList.add('active');
+  } else if (sub === 'shp') {
+    document.getElementById('page-shp').classList.add('active');
+    document.getElementById('sub-shp').classList.add('active');
+  }
 }
 
 // ===== PAGE NAVIGATION =====
