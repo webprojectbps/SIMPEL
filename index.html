@@ -1737,7 +1737,7 @@ async function loadSHP() {
     const header = rows[headerIdx].map(h => h.replace(/"/g, '').trim());
     const iNama  = header.findIndex(h => h.toUpperCase().includes('NAMA RESPONDEN') || h.toUpperCase().includes('NAMA RESPOND'));
     const iJenis = header.findIndex(h => h.toUpperCase().includes('JENIS'));
-    const iPCL   = header.findIndex(h => h.toUpperCase().includes('PENCACAH') || h.toUpperCase().includes('PCL'));
+    const iPCL   = header.findIndex(h => h.toUpperCase().includes('PENCACAH SHP'));
     const iPML   = header.findIndex(h => h.toUpperCase().trim() === 'PML');
 
     const VALID = ['JAN','FEB','MAR','APR','MAY','MEI'];
