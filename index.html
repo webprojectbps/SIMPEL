@@ -1620,12 +1620,22 @@ async function loadSHP() {
     const rows = csvToArray(csv);
     if (rows.length < 4) throw new Error('Data kosong');
 
-    // Header di baris index 2 (baris ke-3), data mulai index 3
-    const header = rows[2].map(h => h.replace(/"/g, '').trim());
-    const iNama  = header.findIndex(h => h.toUpperCase().includes('NAMA RESPONDEN'));
+    // Cari baris header secara dinamis (baris yang mengandung 'PML')
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(rows.length, 10); i++) {
+      const rowStr = rows[i].join(',').toUpperCase();
+      if (rowStr.includes('PML') && rowStr.includes('NAMA')) {
+        headerIdx = i;
+        break;
+      }
+    }
+    if (headerIdx === -1) throw new Error('Header tidak ditemukan');
+
+    const header = rows[headerIdx].map(h => h.replace(/"/g, '').trim());
+    const iNama  = header.findIndex(h => h.toUpperCase().includes('NAMA RESPONDEN') || h.toUpperCase().includes('NAMA RESPOND'));
     const iJenis = header.findIndex(h => h.toUpperCase().includes('JENIS'));
-    const iPCL   = header.findIndex(h => h.toUpperCase().includes('PENCACAH'));
-    const iPML   = header.findIndex(h => h.toUpperCase() === 'PML');
+    const iPCL   = header.findIndex(h => h.toUpperCase().includes('PENCACAH') || h.toUpperCase().includes('PCL'));
+    const iPML   = header.findIndex(h => h.toUpperCase().trim() === 'PML');
 
     const VALID = ['JAN','FEB','MAR','APR','MAY','MEI'];
     const mingguCols = [];
@@ -1636,7 +1646,7 @@ async function loadSHP() {
     });
 
     allDataSHP = [];
-    for (let r = 3; r < rows.length; r++) {
+    for (let r = headerIdx + 1; r < rows.length; r++) {
       const row = rows[r];
       const nama = (row[iNama] || '').replace(/"/g, '').trim();
       if (!nama) continue;
